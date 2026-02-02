@@ -251,6 +251,65 @@ https://www.tiktok.com/@user/video/1234567890123456789">{{ input_links or '' }}<
 </html>
 """
 
+# ✅✅✅ DODANO: konverzija short mobile linkova u full /video/ link
+_TT_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1"
+}
+_tt_session = requests.Session()
+
+def _normalize_tiktok_video_url(url: str) -> str:
+    url = (url or "").strip()
+    # izvuče canonical https://www.tiktok.com/@user/video/123...
+    import re
+    m = re.search(r"(https?://www\.tiktok\.com/@[^/]+/video/\d+)", url)
+    if m:
+        return m.group(1)
+    # fallback: skini query
+    if "?" in url:
+        url = url.split("?", 1)[0]
+    return url
+
+def expand_to_full_tiktok_video_url(url: str, timeout: int = 12) -> str:
+    """
+    Pretvara:
+      https://www.tiktok.com/t/XXXXX/
+      https://vt.tiktok.com/XXXXX/
+      https://vm.tiktok.com/XXXXX/
+    u:
+      https://www.tiktok.com/@user/video/VIDEO_ID
+    """
+    url = (url or "").strip()
+    if not url:
+        return url
+
+    # već full
+    if "tiktok.com" in url and "/video/" in url:
+        return _normalize_tiktok_video_url(url)
+
+    # 2 pokušaja radi stabilnosti
+    for _ in range(2):
+        # HEAD pa GET
+        try:
+            r = _tt_session.head(url, headers=_TT_HEADERS, allow_redirects=True, timeout=timeout)
+            final_url = r.url or url
+        except Exception:
+            final_url = url
+
+        if "/video/" not in (final_url or ""):
+            try:
+                r = _tt_session.get(url, headers=_TT_HEADERS, allow_redirects=True, timeout=timeout)
+                final_url = r.url or final_url or url
+            except Exception:
+                final_url = final_url or url
+
+        final_url = _normalize_tiktok_video_url(final_url)
+        if "/video/" in (final_url or "") and "tiktok.com" in (final_url or ""):
+            return final_url
+
+    # ako nikad nije uspjelo, vrati original
+    return url
+
+
 def send_comments_order(video_link: str, comments_list: list[str]):
     """
     Šalje JEDAN order na JAP za TikTok custom comments.
@@ -316,13 +375,18 @@ def index():
                     log_lines.append(f"[SKIP] Prazan link u liniji.")
                     continue
 
-                ok, msg = send_comments_order(link_to_send, comments)
+                # ✅✅✅ DODANO: konvertuj mobile short link u full /video/ link
+                converted = expand_to_full_tiktok_video_url(link_to_send)
+                if converted != link_to_send:
+                    log_lines.append(f"[CONVERT] {link_to_send} -> {converted}")
+
+                ok, msg = send_comments_order(converted, comments)
                 if ok:
                     sent_ok += 1
-                    log_lines.append(f"[OK] {link_to_send} -> {msg}")
+                    log_lines.append(f"[OK] {converted} -> {msg}")
                 else:
                     sent_fail += 1
-                    log_lines.append(f"[FAIL] {link_to_send} -> {msg}")
+                    log_lines.append(f"[FAIL] {converted} -> {msg}")
 
             status = f"Gotovo. Linija: {len(lines)}, uspešnih ordera: {sent_ok}, fail: {sent_fail}."
 
