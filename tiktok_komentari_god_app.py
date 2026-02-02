@@ -6,9 +6,9 @@ app = Flask(__name__)
 
 # 🔧 KONFIGURACIJA – OVO POPUNI
 # Ako ti je panel drugi, samo promijeni URL, API KEY i SERVICE_ID.
-PANEL_URL = "https://godofpanel.com/api/v2"  # ili tvoj tačni JAP domen
-API_KEY = "f82ab8846492a0842480a8a6eb154e59"
-SERVICE_ID = 3819  # TikTok Custom Comments na JAP-u
+PANEL_URL = "	https://peakerr.com/api/v2"  # ili tvoj tačni JAP domen
+API_KEY = "59bee21fd4e3749a166ef96bb4d5c59f"
+SERVICE_ID = 27194  # TikTok Custom Comments na JAP-u
 
 # 🔁 LISTE KOMENTARA – TVOJE LISTE
 
@@ -49,7 +49,7 @@ HTML_TEMPLATE = """
 <!doctype html>
 <html>
 <head>
-  <title>TikTok Custom Comments Sender</title>
+  <title>TikTok Custom Comments Sender PEAKERR</title>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
@@ -344,6 +344,7 @@ import os
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))  # Railway postavi PORT (kod tebe će biti 8880)
     app.run(host="0.0.0.0", port=port)
+
 
 
 
