@@ -1,50 +1,52 @@
-from flask import Flask, render_template_string, request
+from flask import Flask, render_template_string, request, jsonify
 import requests
 import os
+import time
+import uuid
+import threading
+import re
 
 app = Flask(__name__)
 
 # 🔧 KONFIGURACIJA – OVO POPUNI
-# Ako ti je panel drugi, samo promijeni URL, API KEY i SERVICE_ID.
-PANEL_URL = "	https://peakerr.com/api/v2"  # ili tvoj tačni JAP domen
+PANEL_URL = "https://peakerr.com/api/v2"
 API_KEY = "59bee21fd4e3749a166ef96bb4d5c59f"
-SERVICE_ID = 27194  # TikTok Custom Comments na JAP-u
+SERVICE_ID = 27194  # TikTok Custom Comments na Peakerr-u
 
 # 🔁 LISTE KOMENTARA – TVOJE LISTE
-
-# ✅ COMMENTS_SET_1 = PRVI BLOK koji si poslao
 COMMENTS_SET_1 = [
-   "If you read only one book this year, let it be Encrypted Money Code by Ethan Rothwell. It will transform your life.",
-"I'm telling you, book called Encrypted Money Code by Ethan Rothwell is on another level. You HAVE to experience it. It will change your life.",
-"You have no idea how POWERFUL Encrypted Money Code by Ethan Rothwell is. Read it, it changed my life.",
-"Just trust me, Encrypted Money Code by Ethan Rothwell is the book you NEED right now. It changed my life.",
-"If you’re looking for a book that truly changes everything, Encrypted Money Code by Ethan Rothwell is it. It will change your life.",
-"I can’t even explain it, book called Encrypted Money Code by Ethan Rothwell is different. You NEED this book. It changed my life.",
-"You won’t understand until you read Encrypted Money Code by Ethan Rothwell. It’s a MUST-read. It will change your life.",
-"I spent so much time struggling on the internet, searching for something that would change my life. All I can say is I finally found it. Encrypted Money Code by Ethan Rothwell is an absolute game-changer. This book is like nothing I've ever seen before.",
-"I honestly don’t know where else to say this, but I have to share it here. I found something truly mind-blowing. The book Encrypted Money Code by Ethan Rothwell is on a whole different level, especially for anyone chasing success.",
-"No more gatekeeping just go and read the book Encrypted Money Code by Ethan Rothwell and thank me later for changing your life.",
-"I used to think making money online was too hard for someone who didn’t know much about it, but this book really worked for me. It’s called Encrypted Money Code by Ethan Rothwell. It helped me succeed and start making money, ngl everyone should read it.",
-"Encrypted Money Code by Ethan Rothwell is the only book I’ve read that actually made me feel dangerous. Page 13 is not normal."
+    "If you read only one book this year, let it be Encrypted Money Code by Ethan Rothwell. It will transform your life.",
+    "I'm telling you, book called Encrypted Money Code by Ethan Rothwell is on another level. You HAVE to experience it. It will change your life.",
+    "You have no idea how POWERFUL Encrypted Money Code by Ethan Rothwell is. Read it, it changed my life.",
+    "Just trust me, Encrypted Money Code by Ethan Rothwell is the book you NEED right now. It changed my life.",
+    "If you’re looking for a book that truly changes everything, Encrypted Money Code by Ethan Rothwell is it. It will change your life.",
+    "I can’t even explain it, book called Encrypted Money Code by Ethan Rothwell is different. You NEED this book. It changed my life.",
+    "You won’t understand until you read Encrypted Money Code by Ethan Rothwell. It’s a MUST-read. It will change your life.",
+    "I spent so much time struggling on the internet, searching for something that would change my life. All I can say is I finally found it. Encrypted Money Code by Ethan Rothwell is an absolute game-changer. This book is like nothing I've ever seen before.",
+    "I honestly don’t know where else to say this, but I have to share it here. I found something truly mind-blowing. The book Encrypted Money Code by Ethan Rothwell is on a whole different level, especially for anyone chasing success.",
+    "No more gatekeeping just go and read the book Encrypted Money Code by Ethan Rothwell and thank me later for changing your life.",
+    "I used to think making money online was too hard for someone who didn’t know much about it, but this book really worked for me. It’s called Encrypted Money Code by Ethan Rothwell. It helped me succeed and start making money, ngl everyone should read it.",
+    "Encrypted Money Code by Ethan Rothwell is the only book I’ve read that actually made me feel dangerous. Page 13 is not normal."
 ]
 
-
-# ✅ COMMENTS_SET_2 = DRUGI BLOK koji si poslao
 COMMENTS_SET_2 = [
     "If you read only one book this year, let it be Money Forbidden Compass by Damian Rothwell. It will transform your life.",
- "I'm telling you, book called Money Forbidden Compass by Damian Rothwell is on another level. You HAVE to experience it. It will change your life.",
-"You have no idea how POWERFUL Money Forbidden Compass by Damian Rothwell is. Read it, it changed my life.",
-"Just trust me, Money Forbidden Compass by Damian Rothwell is the book you NEED right now. It changed my life.",
-"If you’re looking for a book that truly changes everything, Money Forbidden Compass by Damian Rothwell is it. It will change your life.",
-"I can’t even explain it, book called Money Forbidden Compass by Damian Rothwell is different. You NEED this book. It changed my life.",
-"You won’t understand until you read Money Forbidden Compass by Damian Rothwell. It’s a MUST-read. It will change your life.",
-"I spent so much time struggling on the internet, searching for something that would change my life. All I can say is I finally found it. Money Forbidden Compass by Damian Rothwell is an absolute game-changer. This book is like nothing I've ever seen before.",
-"I honestly don’t know where else to say this, but I have to share it here. I found something truly mind-blowing. The book Money Forbidden Compass by Damian Rothwell is on a whole different level, especially for anyone chasing success.",
-"No more gatekeeping just go and read the book Money Forbidden Compass by Damian Rothwell and thank me later for changing your life.",
-"I used to think making money online was too hard for someone who didn’t know much about it, but this book really worked for me. It’s called Money Forbidden Compass by Damian Rothwell. It helped me succeed and start making money, ngl everyone should read it.",
-"Money Forbidden Compass by Damian Rothwell is the only book I’ve read that actually made me feel dangerous. Page 13 is not normal."
+    "I'm telling you, book called Money Forbidden Compass by Damian Rothwell is on another level. You HAVE to experience it. It will change your life.",
+    "You have no idea how POWERFUL Money Forbidden Compass by Damian Rothwell is. Read it, it changed my life.",
+    "Just trust me, Money Forbidden Compass by Damian Rothwell is the book you NEED right now. It changed my life.",
+    "If you’re looking for a book that truly changes everything, Money Forbidden Compass by Damian Rothwell is it. It will change your life.",
+    "I can’t even explain it, book called Money Forbidden Compass by Damian Rothwell is different. You NEED this book. It changed my life.",
+    "You won’t understand until you read Money Forbidden Compass by Damian Rothwell. It’s a MUST-read. It will change your life.",
+    "I spent so much time struggling on the internet, searching for something that would change my life. All I can say is I finally found it. Money Forbidden Compass by Damian Rothwell is an absolute game-changer. This book is like nothing I've ever seen before.",
+    "I honestly don’t know where else to say this, but I have to share it here. I found something truly mind-blowing. The book Money Forbidden Compass by Damian Rothwell is on a whole different level, especially for anyone chasing success.",
+    "No more gatekeeping just go and read the book Money Forbidden Compass by Damian Rothwell and thank me later for changing your life.",
+    "I used to think making money online was too hard for someone who didn’t know much about it, but this book really worked for me. It’s called Money Forbidden Compass by Damian Rothwell. It helped me succeed and start making money, ngl everyone should read it.",
+    "Money Forbidden Compass by Damian Rothwell is the only book I’ve read that actually made me feel dangerous. Page 13 is not normal."
 ]
 
+# =========================
+# UI
+# =========================
 HTML_TEMPLATE = """
 <!doctype html>
 <html>
@@ -53,151 +55,22 @@ HTML_TEMPLATE = """
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <style>
-    * {
-      box-sizing: border-box;
-      font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-    }
-
-    body {
-      margin: 0;
-      padding: 0;
-      background: #050816;
-      color: #f9fafb;
-      display: flex;
-      justify-content: center;
-      align-items: flex-start;
-      min-height: 100vh;
-    }
-
-    .container {
-      max-width: 900px;
-      width: 100%;
-      padding: 24px 16px 48px;
-    }
-
-    .card {
-      background: rgba(15, 23, 42, 0.95);
-      border-radius: 18px;
-      padding: 20px;
-      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.6);
-      border: 1px solid rgba(148, 163, 184, 0.3);
-    }
-
-    h1 {
-      font-size: 24px;
-      margin-bottom: 4px;
-      text-align: center;
-    }
-
-    .subtitle {
-      text-align: center;
-      font-size: 13px;
-      color: #9ca3af;
-      margin-bottom: 18px;
-    }
-
-    label {
-      font-size: 13px;
-      font-weight: 500;
-      margin-bottom: 6px;
-      display: inline-block;
-    }
-
-    textarea {
-      width: 100%;
-      min-height: 200px;
-      background: rgba(15, 23, 42, 0.9);
-      border-radius: 12px;
-      border: 1px solid rgba(55, 65, 81, 0.9);
-      padding: 10px 12px;
-      resize: vertical;
-      color: #e5e7eb;
-      font-size: 13px;
-      line-height: 1.4;
-      outline: none;
-    }
-
-    textarea:focus {
-      border-color: #6366f1;
-      box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.6);
-    }
-
-    .hint {
-      font-size: 11px;
-      color: #9ca3af;
-      margin-top: 4px;
-    }
-
-    .btn-row {
-      display: flex;
-      flex-wrap: wrap;
-      gap: 10px;
-      justify-content: center;
-      margin: 16px 0;
-    }
-
-    button {
-      border: none;
-      border-radius: 999px;
-      padding: 10px 20px;
-      font-size: 13px;
-      font-weight: 500;
-      cursor: pointer;
-      display: inline-flex;
-      align-items: center;
-      gap: 8px;
-      transition: transform 0.1s ease, box-shadow 0.1s ease, background 0.15s ease;
-    }
-
-    .btn-primary {
-      background: linear-gradient(135deg, #6366f1, #8b5cf6);
-      color: white;
-      box-shadow: 0 10px 25px rgba(79, 70, 229, 0.6);
-    }
-
-    .btn-primary:hover {
-      transform: translateY(-1px);
-      box-shadow: 0 12px 30px rgba(79, 70, 229, 0.8);
-    }
-
-    .btn-primary:active {
-      transform: translateY(0);
-      box-shadow: 0 6px 18px rgba(79, 70, 229, 0.6);
-    }
-
-    .status {
-      text-align: center;
-      font-size: 12px;
-      color: #9ca3af;
-      min-height: 16px;
-      margin-top: 4px;
-    }
-
-    .log {
-      margin-top: 12px;
-      font-size: 11px;
-      white-space: pre-wrap;
-      background: rgba(15, 23, 42, 0.85);
-      border-radius: 10px;
-      padding: 10px;
-      border: 1px solid rgba(55,65,81,0.9);
-      max-height: 260px;
-      overflow: auto;
-    }
-
-    .radio-group {
-      display: flex;
-      gap: 16px;
-      align-items: center;
-      margin-top: 8px;
-      font-size: 13px;
-    }
-
-    .radio-group label {
-      font-weight: 400;
-      margin: 0;
-    }
-
+    * { box-sizing: border-box; font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    body { margin:0; padding:0; background:#050816; color:#f9fafb; display:flex; justify-content:center; align-items:flex-start; min-height:100vh; }
+    .container { max-width:900px; width:100%; padding:24px 16px 48px; }
+    .card { background:rgba(15,23,42,0.95); border-radius:18px; padding:20px; box-shadow:0 20px 45px rgba(0,0,0,0.6); border:1px solid rgba(148,163,184,0.3); }
+    h1 { font-size:24px; margin-bottom:4px; text-align:center; }
+    .subtitle { text-align:center; font-size:13px; color:#9ca3af; margin-bottom:18px; }
+    label { font-size:13px; font-weight:500; margin-bottom:6px; display:inline-block; }
+    textarea { width:100%; min-height:200px; background:rgba(15,23,42,0.9); border-radius:12px; border:1px solid rgba(55,65,81,0.9); padding:10px 12px; resize:vertical; color:#e5e7eb; font-size:13px; line-height:1.4; outline:none; }
+    .hint { font-size:11px; color:#9ca3af; margin-top:4px; }
+    .btn-row { display:flex; flex-wrap:wrap; gap:10px; justify-content:center; margin:16px 0; }
+    button { border:none; border-radius:999px; padding:10px 20px; font-size:13px; font-weight:600; cursor:pointer; }
+    .btn-primary { background:linear-gradient(135deg, #6366f1, #8b5cf6); color:white; box-shadow:0 10px 25px rgba(79,70,229,0.6); }
+    .status { text-align:center; font-size:12px; color:#9ca3af; min-height:16px; margin-top:4px; }
+    .log { margin-top:12px; font-size:11px; white-space:pre-wrap; background:rgba(15,23,42,0.85); border-radius:10px; padding:10px; border:1px solid rgba(55,65,81,0.9); max-height:320px; overflow:auto; }
+    .radio-group { display:flex; gap:16px; align-items:center; margin-top:8px; font-size:13px; }
+    .radio-group label { font-weight:400; margin:0; }
   </style>
 </head>
 <body>
@@ -205,45 +78,49 @@ HTML_TEMPLATE = """
     <div class="card">
       <h1>TikTok Custom Comments Sender</h1>
       <div class="subtitle">
-        Nalepi TikTok <b>VIDEO linkove</b> (jedan po liniji), izaberi listu komentara i pusti da app pošalje sve ordere na panel (service {{ service_id }}).<br>
-        Link se šalje PANELU TAČNO onakav kakav ga ovde nalepiš (bez ikakve konverzije).
+        Nalijepi TikTok <b>VIDEO linkove</b> (jedan po liniji). Short linkovi (t/ ili vt/ ili vm/) se automatski konvertuju u full /video/ link.
+        <br>Panel: <b>{{ panel_url }}</b> · Service: <b>{{ service_id }}</b>
       </div>
 
       <form method="post">
         <label for="input_links">Video linkovi</label>
-        <textarea id="input_links" name="input_links" placeholder="Primer:
-https://vm.tiktok.com/ZMHTTNkcWmPVu-YrDtq/
-https://vm.tiktok.com/ZMHTTNStjBu8S-bAkas/
-https://www.tiktok.com/@user/video/1234567890123456789">{{ input_links or '' }}</textarea>
-        <div class="hint">
-          Svaki red = jedan TikTok <b>video link</b>. Može biti mobile ili PC, panel dobija isto što ovde nalepiš.
-        </div>
+        <textarea id="input_links" name="input_links" placeholder="Primjer:
+https://www.tiktok.com/t/ZThfJ23PE/
+https://vt.tiktok.com/XXXX/
+https://www.tiktok.com/@user/video/123...">{{ input_links or '' }}</textarea>
 
         <div style="margin-top:14px;">
           <span style="font-size:13px;font-weight:500;">Izaberi set komentara:</span>
           <div class="radio-group">
-            <label>
-              <input type="radio" name="comment_set" value="set1" {% if comment_set == 'set1' %}checked{% endif %}>
-              Komentari #1 ({{ comments1_count }} kom)
-            </label>
-            <label>
-              <input type="radio" name="comment_set" value="set2" {% if comment_set == 'set2' %}checked{% endif %}>
-              Komentari #2 ({{ comments2_count }} kom)
-            </label>
-          </div>
-          <div class="hint">
-            Svi komentari iz seta se šalju kao Custom Comments list (po jedan u svakom redu).
+            <label><input type="radio" name="comment_set" value="set1" {% if comment_set == 'set1' %}checked{% endif %}> Komentari #1 ({{ comments1_count }})</label>
+            <label><input type="radio" name="comment_set" value="set2" {% if comment_set == 'set2' %}checked{% endif %}> Komentari #2 ({{ comments2_count }})</label>
           </div>
         </div>
 
         <div class="btn-row">
-          <button type="submit" name="submit_action" value="send" class="btn-primary">🚀 Send to panel (API)</button>
+          <button type="submit" class="btn-primary">🚀 Start (stabilno)</button>
         </div>
       </form>
 
       <div class="status">{{ status or '' }}</div>
-      {% if log %}
-      <div class="log">{{ log }}</div>
+
+      {% if job_id %}
+        <div class="hint" style="text-align:center;">Job ID: <b>{{ job_id }}</b> (log se refreshuje)</div>
+        <div id="log" class="log">Starting...</div>
+        <script>
+          const jobId = "{{ job_id }}";
+          async function poll(){
+            const r = await fetch("/status/" + jobId);
+            const data = await r.json();
+            document.getElementById("log").textContent = data.log || "";
+            if(!data.done){
+              setTimeout(poll, 1200);
+            }
+          }
+          poll();
+        </script>
+      {% elif log %}
+        <div class="log">{{ log }}</div>
       {% endif %}
     </div>
   </div>
@@ -251,71 +128,67 @@ https://www.tiktok.com/@user/video/1234567890123456789">{{ input_links or '' }}<
 </html>
 """
 
-# ✅✅✅ DODANO: konverzija short mobile linkova u full /video/ link
+# =========================
+# Stabilni TikTok expand (cache + retry)
+# =========================
 _TT_HEADERS = {
     "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15 (KHTML, like Gecko) Version/17.0 Mobile Safari/604.1"
 }
-_tt_session = requests.Session()
+_tt = requests.Session()
+_expand_cache = {}  # short->full
 
 def _normalize_tiktok_video_url(url: str) -> str:
     url = (url or "").strip()
-    # izvuče canonical https://www.tiktok.com/@user/video/123...
-    import re
     m = re.search(r"(https?://www\.tiktok\.com/@[^/]+/video/\d+)", url)
     if m:
         return m.group(1)
-    # fallback: skini query
     if "?" in url:
         url = url.split("?", 1)[0]
     return url
 
-def expand_to_full_tiktok_video_url(url: str, timeout: int = 12) -> str:
-    """
-    Pretvara:
-      https://www.tiktok.com/t/XXXXX/
-      https://vt.tiktok.com/XXXXX/
-      https://vm.tiktok.com/XXXXX/
-    u:
-      https://www.tiktok.com/@user/video/VIDEO_ID
-    """
+def expand_to_full_tiktok_video_url(url: str, timeout: int = 10) -> str:
     url = (url or "").strip()
     if not url:
         return url
 
-    # već full
-    if "tiktok.com" in url and "/video/" in url:
+    if "/video/" in url and "tiktok.com" in url:
         return _normalize_tiktok_video_url(url)
 
-    # 2 pokušaja radi stabilnosti
-    for _ in range(2):
-        # HEAD pa GET
-        try:
-            r = _tt_session.head(url, headers=_TT_HEADERS, allow_redirects=True, timeout=timeout)
-            final_url = r.url or url
-        except Exception:
-            final_url = url
+    if url in _expand_cache:
+        return _expand_cache[url]
 
-        if "/video/" not in (final_url or ""):
+    final_url = url
+    # 3 pokušaja (stabilnije)
+    for _ in range(3):
+        try:
+            r = _tt.head(url, headers=_TT_HEADERS, allow_redirects=True, timeout=timeout)
+            if r.url:
+                final_url = r.url
+        except Exception:
+            pass
+
+        if "/video/" not in final_url:
             try:
-                r = _tt_session.get(url, headers=_TT_HEADERS, allow_redirects=True, timeout=timeout)
-                final_url = r.url or final_url or url
+                r = _tt.get(url, headers=_TT_HEADERS, allow_redirects=True, timeout=timeout)
+                if r.url:
+                    final_url = r.url
             except Exception:
-                final_url = final_url or url
+                pass
 
         final_url = _normalize_tiktok_video_url(final_url)
-        if "/video/" in (final_url or "") and "tiktok.com" in (final_url or ""):
+        if "/video/" in final_url and "tiktok.com" in final_url:
+            _expand_cache[url] = final_url
             return final_url
 
-    # ako nikad nije uspjelo, vrati original
+        time.sleep(0.4)
+
+    _expand_cache[url] = url
     return url
 
-
-def send_comments_order(video_link: str, comments_list: list[str]):
-    """
-    Šalje JEDAN order na JAP za TikTok custom comments.
-    video_link -> link videa (mobile ili PC, šaljemo kako je nalijepljen).
-    comments_list -> lista stringova, svaki komentar u posebnom redu.
-    """
+# =========================
+# Panel send (retry + timeouts)
+# =========================
+def send_comments_order(video_link: str, comments_list):
     comments_text = "\n".join(comments_list)
 
     payload = {
@@ -326,26 +199,85 @@ def send_comments_order(video_link: str, comments_list: list[str]):
         "comments": comments_text,
     }
 
-    try:
-        r = requests.post(PANEL_URL, data=payload, timeout=20)
+    # 3 retry-a jer Peakerr zna “štucati”
+    last_err = None
+    for attempt in range(3):
         try:
+            r = requests.post(PANEL_URL, data=payload, timeout=35)
             data = r.json()
-        except Exception:
-            return False, f"HTTP {r.status_code}, body={r.text[:200]}"
+            if "order" in data:
+                return True, f"order={data['order']}"
+            last_err = f"resp={data}"
+        except Exception as e:
+            last_err = f"exception={e}"
 
-        if "order" in data:
-            return True, f"order={data['order']}"
-        else:
-            return False, f"resp={data}"
+        time.sleep(1.2 + attempt)  # backoff
+
+    return False, last_err or "unknown_error"
+
+# =========================
+# Background job store
+# =========================
+jobs = {}  # job_id -> {"log": str, "done": bool}
+
+def _append(job_id: str, line: str):
+    jobs[job_id]["log"] += line + "\n"
+
+def worker(job_id: str, lines, comments, set_name: str):
+    try:
+        _append(job_id, f"Korišćen set: {set_name} ({len(comments)} komentara)")
+        _append(job_id, f"Slanje na {PANEL_URL}, service={SERVICE_ID}")
+        _append(job_id, "")
+
+        ok_count = 0
+        fail_count = 0
+
+        for idx, raw_link in enumerate(lines, start=1):
+            raw_link = raw_link.strip()
+            if not raw_link:
+                fail_count += 1
+                _append(job_id, f"[SKIP] Prazan link (linija {idx})")
+                continue
+
+            converted = expand_to_full_tiktok_video_url(raw_link)
+            if converted != raw_link:
+                _append(job_id, f"[CONVERT] {raw_link} -> {converted}")
+
+            # Ako nije uspio expand u /video/, bolje skip nego bacati pare
+            if "/video/" not in converted:
+                fail_count += 1
+                _append(job_id, f"[SKIP] Ne mogu konvertovati u /video/ link: {raw_link}")
+                continue
+
+            ok, msg = send_comments_order(converted, comments)
+            if ok:
+                ok_count += 1
+                _append(job_id, f"[OK] {converted} -> {msg}")
+            else:
+                fail_count += 1
+                _append(job_id, f"[FAIL] {converted} -> {msg}")
+
+            # Mali delay da ne ubije TikTok/Panel (stabilnije za 50+ linkova)
+            time.sleep(0.6)
+
+        _append(job_id, "")
+        _append(job_id, f"✅ GOTOVO: linkova={len(lines)} | OK={ok_count} | FAIL={fail_count}")
+
     except Exception as e:
-        return False, f"exception={e}"
+        _append(job_id, f"🔥 INTERNAL WORKER ERROR: {e}")
 
+    jobs[job_id]["done"] = True
+
+# =========================
+# Routes
+# =========================
 @app.route("/", methods=["GET", "POST"])
 def index():
     input_links = ""
     status = ""
-    log_lines = []
+    log = ""
     comment_set = "set1"
+    job_id = None
 
     if request.method == "POST":
         comment_set = request.form.get("comment_set", "set1")
@@ -360,51 +292,38 @@ def index():
             set_name = "Komentari #1"
 
         if not comments:
-            status = "⚠ Odabrani set komentara je PRAZAN – popuni COMMENTS_SET_1 / 2 u kodu."
+            status = "⚠ Odabrani set komentara je PRAZAN."
+        elif not lines:
+            status = "⚠ Nisi unio nijedan link."
         else:
-            sent_ok = 0
-            sent_fail = 0
-            log_lines.append(f"Korišćen set: {set_name} ({len(comments)} komentara)")
-            log_lines.append(f"Slanje na {PANEL_URL}, service={SERVICE_ID}")
-            log_lines.append("")
+            job_id = str(uuid.uuid4())[:8]
+            jobs[job_id] = {"log": "", "done": False}
 
-            for raw_link in lines:
-                link_to_send = raw_link.strip()
-                if not link_to_send:
-                    sent_fail += 1
-                    log_lines.append(f"[SKIP] Prazan link u liniji.")
-                    continue
+            t = threading.Thread(target=worker, args=(job_id, lines, comments, set_name), daemon=True)
+            t.start()
 
-                # ✅✅✅ DODANO: konvertuj mobile short link u full /video/ link
-                converted = expand_to_full_tiktok_video_url(link_to_send)
-                if converted != link_to_send:
-                    log_lines.append(f"[CONVERT] {link_to_send} -> {converted}")
-
-                ok, msg = send_comments_order(converted, comments)
-                if ok:
-                    sent_ok += 1
-                    log_lines.append(f"[OK] {converted} -> {msg}")
-                else:
-                    sent_fail += 1
-                    log_lines.append(f"[FAIL] {converted} -> {msg}")
-
-            status = f"Gotovo. Linija: {len(lines)}, uspešnih ordera: {sent_ok}, fail: {sent_fail}."
-
-    log = "\n".join(log_lines) if log_lines else ""
+            status = f"Pokrenuto. Linkova: {len(lines)} (radi u pozadini — neće pucati)."
 
     return render_template_string(
         HTML_TEMPLATE,
         input_links=input_links,
         status=status,
         log=log,
+        job_id=job_id,
         comment_set=comment_set,
         comments1_count=len(COMMENTS_SET_1),
         comments2_count=len(COMMENTS_SET_2),
         service_id=SERVICE_ID,
+        panel_url=PANEL_URL,
     )
 
-import os
+@app.route("/status/<job_id>")
+def job_status(job_id):
+    j = jobs.get(job_id)
+    if not j:
+        return jsonify({"done": True, "log": "Job not found."})
+    return jsonify({"done": j["done"], "log": j["log"]})
 
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 8080))  # Railway postavi PORT (kod tebe će biti 8880)
+    port = int(os.environ.get("PORT", 8080))
     app.run(host="0.0.0.0", port=port)
